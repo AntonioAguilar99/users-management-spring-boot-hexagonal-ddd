@@ -1,16 +1,14 @@
-FROM maven:3.9.11-eclipse-temurin-17 AS build
-
-WORKDIR /workspace
-COPY pom.xml ./
-COPY src ./src
-RUN mvn --batch-mode --no-transfer-progress clean package -DskipTests
-
-FROM eclipse-temurin:17-jre
-
-RUN groupadd --system spring && useradd --system --gid spring spring
+# Etapa 1: Compilacion del proyecto
+FROM maven:3.9.6-eclipse-temurin-17 AS builder
 WORKDIR /app
-COPY --from=build --chown=spring:spring /workspace/target/users-management-*.jar app.jar
-USER spring:spring
+COPY pom.xml .
+RUN mvn dependency:go-offline -B
+COPY src ./src
+RUN mvn clean package -DskipTests
 
+# Etapa 2: Imagen final ligera para ejecucion
+FROM eclipse-temurin:17-jre-alpine
+WORKDIR /app
+COPY --from=builder /app/target/*.jar app.jar
 EXPOSE 8080
-ENTRYPOINT ["java", "-jar", "/app/app.jar"]
+ENTRYPOINT ["java", "-jar", "app.jar"]
